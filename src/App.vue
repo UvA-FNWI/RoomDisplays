@@ -1,7 +1,7 @@
 <template>
   <div id="app">
-    <img alt="Vue logo" src="./assets/logo.png">
-    <HelloWorld msg="Welcome to Your Vue.js + TypeScript App"/>
+    <img alt="Vue logo" src="./assets/logo.jpg">
+    <HelloWorld />
   </div>
 </template>
 
@@ -17,13 +17,25 @@ export default Vue.extend({
 });
 </script>
 
-<style>
+<style lang="scss">
+body {
+  background: rgb(29,29,27);
+}
+
 #app {
-  font-family: 'Avenir', Helvetica, Arial, sans-serif;
+  font-family: 'Quicksand';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  text-align: center;
-  color: #2c3e50;
-  margin-top: 60px;
+  color: white;
+  padding-top: 35px;
+  background: rgb(29,29,27);
+  height: 100%;
+
+  img {
+    display: block;
+    margin-left: 10%;
+    margin-right: 10%;
+    width: 80%;
+  }
 }
 </style>

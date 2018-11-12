@@ -1,60 +1,227 @@
 <template>
-  <div class="hello">
-    <h1>{{ msg }}</h1>
-    <p>
-      For a guide and recipes on how to configure / customize this project,<br>
-      check out the
-      <a href="https://cli.vuejs.org" target="_blank" rel="noopener">vue-cli documentation</a>.
-    </p>
-    <h3>Installed CLI Plugins</h3>
-    <ul>
-      <li><a href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-babel" target="_blank" rel="noopener">babel</a></li>
-      <li><a href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-typescript" target="_blank" rel="noopener">typescript</a></li>
-    </ul>
-    <h3>Essential Links</h3>
-    <ul>
-      <li><a href="https://vuejs.org" target="_blank" rel="noopener">Core Docs</a></li>
-      <li><a href="https://forum.vuejs.org" target="_blank" rel="noopener">Forum</a></li>
-      <li><a href="https://chat.vuejs.org" target="_blank" rel="noopener">Community Chat</a></li>
-      <li><a href="https://twitter.com/vuejs" target="_blank" rel="noopener">Twitter</a></li>
-      <li><a href="https://news.vuejs.org" target="_blank" rel="noopener">News</a></li>
-    </ul>
-    <h3>Ecosystem</h3>
-    <ul>
-      <li><a href="https://router.vuejs.org" target="_blank" rel="noopener">vue-router</a></li>
-      <li><a href="https://vuex.vuejs.org" target="_blank" rel="noopener">vuex</a></li>
-      <li><a href="https://github.com/vuejs/vue-devtools#vue-devtools" target="_blank" rel="noopener">vue-devtools</a></li>
-      <li><a href="https://vue-loader.vuejs.org" target="_blank" rel="noopener">vue-loader</a></li>
-      <li><a href="https://github.com/vuejs/awesome-vue" target="_blank" rel="noopener">awesome-vue</a></li>
-    </ul>
+  <div id='container'>
+    <button v-if="!isFullScreen" @click="test">Test</button>
+    <div class='header'>Room B1.49A</div>
+    <div class='subheader'>8 people, LCD display</div>
+
+    <div class='status'><span v-if="isFree" class='free'>Free</span><span v-if="!isFree" class='busy'>Occupied</span> for the {{ timeRemaining }}</div>
+
+    <div class='calendar'>
+      <div class='row' v-for="hour in hours" :key="hour">
+        <span> {{ hour }}:00 </span>
+      </div>
+      <div class='booking' :style="getBookingStyle(booking)" v-for="(booking, index) in bookings" :key="index">
+        <div>
+          {{ booking.Description }}
+          <div> {{ booking.Author }}</div>
+        </div>
+      </div>
+      <div class='time' :style="timeStyle"></div>
+    </div> 
   </div>
 </template>
 
 <script lang="ts">
 import Vue from 'vue';
+import Booking from '../models/Booking';
+
+const blockHeight = 65;
 
 export default Vue.extend({
   name: 'HelloWorld',
-  props: {
-    msg: String,
+  data() {
+    return {
+      currentTime: 8,
+      isFullScreen: false,
+      hours: [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
+      bookings: [
+        {
+          StartTime: 9,
+          Duration: 1,
+          Description: 'BMS overleg',
+          Author: 'Laura Lighaam',
+        }, {
+          StartTime: 10,
+          Duration: 1,
+          Description: 'SPA overleg',
+          Author: 'Manon Vlug',
+        }, {
+          StartTime: 11,
+          Duration: 1,
+          Description: 'Feedbackgesprek BMW',
+          Author: 'Maciek Sokolewicz',
+        }, {
+          StartTime: 14,
+          Duration: 3,
+          Description: 'Tentamen',
+          Author: 'Hugo Eenhoorn',
+        },
+      ],
+    };
+  },
+  methods: {
+    test() {
+      const body: any = document.body; 
+      body.webkitRequestFullScreen(); // vendor prefix madness
+      this.isFullScreen = true;
+    },
+    updateTime() {
+      const date = new Date();
+      this.currentTime = date.getHours() + date.getMinutes() / 60.0;
+    },
+    getBookingStyle(book: Booking) {
+      return {
+        top: (book.StartTime - 8) * blockHeight + 'px',
+        height: book.Duration * blockHeight + 'px',
+      };
+    },
+  },
+  computed: {
+    timeRemaining(): string {
+      let nextTime = this.bookings.filter(b => b.StartTime > this.currentTime).map(b => b.StartTime)[0];
+      if (!this.isFree) {
+        let book = this.bookings.filter(b => b.StartTime <= this.currentTime + 0.1 && b.StartTime + b.Duration >= this.currentTime)[0];
+        while (true) {
+          const next = this.bookings.filter(b => b.StartTime == book.StartTime + book.Duration)[0];
+          if (!next) { break; }
+          book = next;
+        }
+        nextTime = book.StartTime + book.Duration;
+      }
+
+      if (!nextTime) {
+        return 'rest of the day';
+      } else if (nextTime - this.currentTime > 1) {
+        const hours = Math.floor(nextTime - this.currentTime);
+        return hours === 1 ? `next hour` : `next ${hours} hours`;
+      } else {
+        return `next ${Math.floor((nextTime - this.currentTime) * 60)} minutes`;
+      }
+    },
+
+    isFree(): boolean {
+      return this.bookings.filter(b => b.StartTime <= this.currentTime + 0.1 && b.StartTime + b.Duration >= this.currentTime)[0] === undefined;
+    },
+
+    timeStyle(): any {
+      return { top: (this.currentTime - 8) * blockHeight + 'px' };
+    }
+  },
+  mounted() {
+    window.setInterval(() => this.updateTime());
   },
 });
 </script>
 
-<!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped>
-h3 {
-  margin: 40px 0 0;
-}
-ul {
-  list-style-type: none;
-  padding: 0;
-}
-li {
-  display: inline-block;
-  margin: 0 10px;
-}
-a {
-  color: #42b983;
-}
+<style lang="scss" scoped>
+  #container {
+    margin-left: 5%;
+    margin-right: 5%;
+  }
+
+  div.header {
+    margin-top: 10px;
+    font-size: 50px;
+    margin-bottom: 5px;
+    text-align: center;
+  }
+
+  div.subheader {
+    font-size: 20px;
+    color: #ccc;
+    text-align: center;
+
+    margin-bottom: 15px;
+  }
+
+  div.status {
+    text-align: center;
+    font-size: 25px;
+    span {
+      //display: block;
+      font-size: 35px;
+
+      &.free {
+        color: lightgreen;
+      }
+      &.busy {
+        color: lightcoral;
+      }
+    }
+
+    margin-bottom: 40px;
+  }
+
+  div.row {
+    height: 64px;
+    border-top: 1px solid #444;
+    margin-left: 50px;
+    font-size: smaller;
+    span {
+      color: #aaa;
+      text-align: right;
+      position: relative;
+      display: inline-block;
+      left: -60px;
+      top: -9px;
+      width: 50px;
+    }
+  }
+
+  div.calendar {
+    position: relative;
+  }
+
+  div.booking {
+    position: absolute;
+    left: 50px;
+    right: 0px;
+    background-color:rgb(0, 64, 125);
+    color: #cfe5fa;
+    border: 1px solid rgb(29,29,27);
+
+    > div {
+      padding: 5px;
+      padding-left: 8px;
+      font-weight: 500;
+
+      font-size: 15px;
+
+      > div {
+        font-size: 13px;
+        margin-top: 2px;
+        font-weight: 400;
+      }
+    }
+
+    &::before {
+      content: "";
+      position: absolute;
+      width: 2px;
+      height: 100%;
+      background-color:  #cfe5fa;
+    }
+  }
+
+  div.time {
+    position: absolute;
+    left: 50px;
+    right: 0px;
+    border-top: 1px solid rgb(153, 88, 238);
+
+    &::before {
+      width: 8px;
+      height: 8px;
+      background-color: rgb(153, 88, 238);
+      transform: rotate(45deg);
+      content: "";
+      display: block;
+      // border-top: 7px solid transparent;
+      // border-bottom: 7px solid transparent;
+      // border-left: 7px solid yellow;
+      position: relative;
+      top: -4px;
+      left: -4px;
+    }
+  }
 </style>
