@@ -2,5 +2,6 @@ export default interface Booking {
     StartTime: number;
     Duration: number;
     Description: string;
-    Author: string;
+    Type: string | null;
+    Staff: string[];
 }

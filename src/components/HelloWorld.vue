@@ -1,29 +1,38 @@
 <template>
-  <div id='container'>
-    <button v-if="!isFullScreen" @click="test">Test</button>
-    <div class='header'>Room B1.49A</div>
-    <div class='subheader'>8 people, LCD display</div>
+  <div id='container' v-if="bookings && room">
+    <div class='header'>Room {{ room.Name.replace('SP ', '') }}</div>
+    <div class='subheader'>{{ room.Capacity }} people<span v-if="room.Facilities">, {{ room.Facilities }}</span></div>
 
-    <div class='status'><span v-if="isFree" class='free'>Free</span><span v-if="!isFree" class='busy'>Occupied</span> for the {{ timeRemaining }}</div>
-
-    <div class='calendar'>
-      <div class='row' v-for="hour in hours" :key="hour">
-        <span> {{ hour }}:00 </span>
-      </div>
-      <div class='booking' :style="getBookingStyle(booking)" v-for="(booking, index) in bookings" :key="index">
-        <div>
-          {{ booking.Description }}
-          <div> {{ booking.Author }}</div>
+    <div class='days' @touchend="handleScroll">
+      <div v-for='day in [1,2,3]' :key='day'>
+        <div class='status' v-if='day == 1'>
+          <span v-if="isFree" class='free'>Free</span><span v-if="!isFree" class='busy'>Occupied</span> for the {{ timeRemaining }}
         </div>
+        <div class='status' v-if='day == 2'>
+          Tomorrow, December 29
+        </div>
+
+        <div class='calendar'>
+          <div class='row' v-for="hour in hours" :key="hour">
+            <span> {{ hour }}:00 </span>
+          </div>
+          <div class='booking' :style="getBookingStyle(booking)" v-for="(booking, index) in bookings" :key="index">
+            <div>
+              {{ booking.Description }}
+              <div :class="{ inlineStaff: booking.Duration < 1 }"> {{ booking.Staff[0] }}</div>
+            </div>
+          </div>
+          <div class='time' :style="timeStyle"></div>
+        </div> 
       </div>
-      <div class='time' :style="timeStyle"></div>
-    </div> 
+    </div>
   </div>
 </template>
 
 <script lang="ts">
 import Vue from 'vue';
 import Booking from '../models/Booking';
+import Room from '../models/Room';
 
 const blockHeight = 65;
 
@@ -34,34 +43,17 @@ export default Vue.extend({
       currentTime: 8,
       isFullScreen: false,
       hours: [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
-      bookings: [
-        {
-          StartTime: 9,
-          Duration: 1,
-          Description: 'BMS overleg',
-          Author: 'Laura Lighaam',
-        }, {
-          StartTime: 10,
-          Duration: 1,
-          Description: 'SPA overleg',
-          Author: 'Manon Vlug',
-        }, {
-          StartTime: 11,
-          Duration: 1,
-          Description: 'Feedbackgesprek BMW',
-          Author: 'Maciek Sokolewicz',
-        }, {
-          StartTime: 14,
-          Duration: 3,
-          Description: 'Tentamen',
-          Author: 'Hugo Eenhoorn',
-        },
-      ],
     };
   },
+
+  created() {
+    this.$store.dispatch('retrieveRoom');
+    this.$store.dispatch('retrieveBookings');
+  },
+
   methods: {
     test() {
-      const body: any = document.body; 
+      const body: any = document.body;
       body.webkitRequestFullScreen(); // vendor prefix madness
       this.isFullScreen = true;
     },
@@ -75,8 +67,26 @@ export default Vue.extend({
         height: book.Duration * blockHeight + 'px',
       };
     },
+    handleScroll() {
+      const el = document.querySelector('.days');
+      if (el === null) {
+        return;
+      }
+      const width = window.innerWidth - 20;
+      const target = Math.floor(el.scrollLeft / width + 0.5);
+
+      el.scrollTo({ left: target * width, top: 0, behavior: 'smooth' });
+    }
   },
   computed: {
+    bookings(): Booking[] {
+      return this.$store.state.Bookings;
+    },
+
+    room(): Room {
+      return this.$store.state.Room;
+    },
+
     timeRemaining(): string {
       let nextTime = this.bookings.filter(b => b.StartTime > this.currentTime).map(b => b.StartTime)[0];
       if (!this.isFree) {
@@ -109,6 +119,7 @@ export default Vue.extend({
   },
   mounted() {
     window.setInterval(() => this.updateTime());
+    window.setInterval(() => this.$store.dispatch('retrieveBookings'), 30000);
   },
 });
 </script>
@@ -222,6 +233,26 @@ export default Vue.extend({
       position: relative;
       top: -4px;
       left: -4px;
+    }
+  }
+
+  div.inlineStaff {
+    display: inline-block;
+    margin-left: 5px;
+  }
+
+  div.days {
+    white-space: nowrap;
+    width: 100%;
+    overflow-x: auto;
+
+    > div {
+      display: inline-block;
+      width: 100%;
+    }
+
+    > div:not(:last-child) {
+      margin-right: 10%;
     }
   }
 </style>
