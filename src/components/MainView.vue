@@ -37,7 +37,7 @@ import Room from '../models/Room';
 const blockHeight = 65;
 
 export default Vue.extend({
-  name: 'HelloWorld',
+  name: 'MainView',
   data() {
     return {
       currentTime: 8,
