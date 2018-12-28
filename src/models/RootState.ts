@@ -4,6 +4,5 @@ import Day from '@/models/Day';
 
 export default interface RootState {
     Days: Day[];
-    Bookings: Booking[] | null;
     Room: Room | null;
 }

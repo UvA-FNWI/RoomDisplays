@@ -16,7 +16,6 @@ const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
 
 export default new Vuex.Store<RootState>({
   state: {
-    Bookings: null,
     Room: null,
     Days: [
       { Index: 0, Bookings: null, FormattedDate: null },
