@@ -4,26 +4,15 @@
     <div class='subheader'>{{ room.Capacity }} people<span v-if="room.Facilities">, {{ room.Facilities }}</span></div>
 
     <div class='days' @touchend="handleScroll">
-      <div v-for='day in [1,2,3]' :key='day'>
-        <div class='status' v-if='day == 1'>
+      <div v-for='day in days' :key='day.Index'>
+        <div class='status' v-if='day.Index == 0'>
           <span v-if="isFree" class='free'>Free</span><span v-if="!isFree" class='busy'>Occupied</span> for the {{ timeRemaining }}
         </div>
-        <div class='status' v-if='day == 2'>
-          Tomorrow, December 29
+        <div class='status' v-if='day.Index >0 '>
+          <template v-if='day.Index == 1'>Tomorrow, </template>{{ day.FormattedDate }}
         </div>
 
-        <div class='calendar'>
-          <div class='row' v-for="hour in hours" :key="hour">
-            <span> {{ hour }}:00 </span>
-          </div>
-          <div class='booking' :style="getBookingStyle(booking)" v-for="(booking, index) in bookings" :key="index">
-            <div>
-              {{ booking.Description }}
-              <div :class="{ inlineStaff: booking.Duration < 1 }"> {{ booking.Staff[0] }}</div>
-            </div>
-          </div>
-          <div class='time' :style="timeStyle"></div>
-        </div> 
+        <CalendarView :bookings="day.Bookings" :currentTime="day.Index == 0 ? currentTime : 0"></CalendarView>
       </div>
     </div>
   </div>
@@ -31,41 +20,36 @@
 
 <script lang="ts">
 import Vue from 'vue';
-import Booking from '../models/Booking';
 import Room from '../models/Room';
+import Day from '../models/Day';
+import Booking from '../models/Booking';
+import CalendarView from './CalendarView.vue';
 
-const blockHeight = 65;
+let scrollTimeout: number;
 
 export default Vue.extend({
   name: 'MainView',
+
   data() {
     return {
       currentTime: 8,
-      isFullScreen: false,
-      hours: [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
     };
   },
 
+  components: { CalendarView },
+
   created() {
     this.$store.dispatch('retrieveRoom');
-    this.$store.dispatch('retrieveBookings');
+    this.retrieveBookings();
   },
 
   methods: {
-    test() {
-      const body: any = document.body;
-      body.webkitRequestFullScreen(); // vendor prefix madness
-      this.isFullScreen = true;
+    retrieveBookings(day: number = 0) {
+      this.$store.dispatch('retrieveBookings', day);
     },
     updateTime() {
       const date = new Date();
       this.currentTime = date.getHours() + date.getMinutes() / 60.0;
-    },
-    getBookingStyle(book: Booking) {
-      return {
-        top: (book.StartTime - 8) * blockHeight + 'px',
-        height: book.Duration * blockHeight + 'px',
-      };
     },
     handleScroll() {
       const el = document.querySelector('.days');
@@ -74,13 +58,23 @@ export default Vue.extend({
       }
       const width = window.innerWidth - 20;
       const target = Math.floor(el.scrollLeft / width + 0.5);
+      this.retrieveBookings(target);
 
       el.scrollTo({ left: target * width, top: 0, behavior: 'smooth' });
-    }
+      if (scrollTimeout) {
+        window.clearTimeout(scrollTimeout);
+        scrollTimeout = 0;
+      }
+      scrollTimeout = window.setTimeout(() => el.scrollTo({ left: 0, top: 0, behavior: 'smooth' }), 5000);
+    },
   },
   computed: {
-    bookings(): Booking[] {
-      return this.$store.state.Bookings;
+    days(): Day[] {
+      return this.$store.state.Days;
+    },
+
+    bookings(): Booking[] | null {
+      return this.days[0].Bookings;
     },
 
     room(): Room {
@@ -88,11 +82,14 @@ export default Vue.extend({
     },
 
     timeRemaining(): string {
+      if (this.bookings === null) {
+        return '';
+      }
       let nextTime = this.bookings.filter(b => b.StartTime > this.currentTime).map(b => b.StartTime)[0];
       if (!this.isFree) {
         let book = this.bookings.filter(b => b.StartTime <= this.currentTime + 0.1 && b.StartTime + b.Duration >= this.currentTime)[0];
         while (true) {
-          const next = this.bookings.filter(b => b.StartTime == book.StartTime + book.Duration)[0];
+          const next = this.bookings.filter(b => b.StartTime === book.StartTime + book.Duration)[0];
           if (!next) { break; }
           book = next;
         }
@@ -110,16 +107,12 @@ export default Vue.extend({
     },
 
     isFree(): boolean {
-      return this.bookings.filter(b => b.StartTime <= this.currentTime + 0.1 && b.StartTime + b.Duration >= this.currentTime)[0] === undefined;
+      return this.bookings !== null && this.bookings.filter(b => b.StartTime <= this.currentTime + 0.1 && b.StartTime + b.Duration >= this.currentTime)[0] === undefined;
     },
-
-    timeStyle(): any {
-      return { top: (this.currentTime - 8) * blockHeight + 'px' };
-    }
   },
   mounted() {
     window.setInterval(() => this.updateTime());
-    window.setInterval(() => this.$store.dispatch('retrieveBookings'), 30000);
+    window.setInterval(() => this.retrieveBookings(), 30000);
   },
 });
 </script>
@@ -161,84 +154,6 @@ export default Vue.extend({
     }
 
     margin-bottom: 40px;
-  }
-
-  div.row {
-    height: 64px;
-    border-top: 1px solid #444;
-    margin-left: 50px;
-    font-size: smaller;
-    span {
-      color: #aaa;
-      text-align: right;
-      position: relative;
-      display: inline-block;
-      left: -60px;
-      top: -9px;
-      width: 50px;
-    }
-  }
-
-  div.calendar {
-    position: relative;
-  }
-
-  div.booking {
-    position: absolute;
-    left: 50px;
-    right: 0px;
-    background-color:rgb(0, 64, 125);
-    color: #cfe5fa;
-    border: 1px solid rgb(29,29,27);
-
-    > div {
-      padding: 5px;
-      padding-left: 8px;
-      font-weight: 500;
-
-      font-size: 15px;
-
-      > div {
-        font-size: 13px;
-        margin-top: 2px;
-        font-weight: 400;
-      }
-    }
-
-    &::before {
-      content: "";
-      position: absolute;
-      width: 2px;
-      height: 100%;
-      background-color:  #cfe5fa;
-    }
-  }
-
-  div.time {
-    position: absolute;
-    left: 50px;
-    right: 0px;
-    border-top: 1px solid rgb(153, 88, 238);
-
-    &::before {
-      width: 8px;
-      height: 8px;
-      background-color: rgb(153, 88, 238);
-      transform: rotate(45deg);
-      content: "";
-      display: block;
-      // border-top: 7px solid transparent;
-      // border-bottom: 7px solid transparent;
-      // border-left: 7px solid yellow;
-      position: relative;
-      top: -4px;
-      left: -4px;
-    }
-  }
-
-  div.inlineStaff {
-    display: inline-block;
-    margin-left: 5px;
   }
 
   div.days {
